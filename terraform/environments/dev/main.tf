@@ -63,7 +63,7 @@ resource "github_repository" "gitops_apps" {
   name        = var.gitops_apps_repo
   visibility  = var.repo_visibility
   auto_init   = true
-  description = "GitOps APPLICATIONS — consommé par Argo CD"
+  description = "GitOps APPLICATIONS — consommé par Flux CD (décision : tout Flux, pas d'Argo CD)"
 }
 
 # Le « pont » : métadonnées du cluster poussées dans Git, consommées ensuite
