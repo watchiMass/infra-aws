@@ -45,6 +45,17 @@ module "irsa" {
   enable_keda             = var.enable_keda
 }
 
+# Registre d'images ECR + rôle de push pour la CI GitHub Actions (§5.2).
+module "ecr" {
+  source = "../../modules/terraform-aws-ecr"
+
+  prefix       = var.cluster_name
+  repositories = ["dev-portfolio"]
+  github_org   = var.git_org
+  github_repos = ["dev-portfolio"]
+  tags         = local.tags
+}
+
 # --- §2.7 GitOps Bridge — Terraform → Git → Flux ---
 
 data "aws_caller_identity" "current" {}
@@ -89,6 +100,7 @@ resource "github_repository_file" "cluster_metadata" {
       domain_name                 = var.domain_name
       platform_repo_url           = "https://github.com/${var.git_org}/${var.gitops_platform_repo}"
       apps_repo_url               = "https://github.com/${var.git_org}/${var.gitops_apps_repo}"
+      ecr_registry                = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.region}.amazonaws.com"
       external_dns_role_arn       = module.irsa.external_dns_role_arn
       external_secrets_role_arn   = module.irsa.external_secrets_role_arn
       image_reflector_role_arn    = module.irsa.image_reflector_role_arn
