@@ -1,0 +1,14 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.lock.info
+crash.log
+crash.*.log
+
+# Variables d'environnement : jamais commitées (risque de valeurs sensibles).
+# Le fichier de référence est terraform.tfvars.example (commité).
+*.tfvars
+
+# Environnement local
+.env

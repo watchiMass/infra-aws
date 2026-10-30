@@ -1,0 +1,114 @@
+# IRSA associe un rôle IAM à un Kubernetes ServiceAccount par le fournisseur OIDC
+# du cluster. Le Pod obtient alors des identifiants STS temporaires ; aucune clé
+# AWS statique n'est stockée dans Kubernetes. Crée un rôle distinct par
+# ServiceAccount et par périmètre de permissions : ne partage pas un rôle
+# administratif entre Flux et les addons. Voir le
+# [guide IRSA d'EKS](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
+
+module "irsa_external_dns" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.52"
+
+  role_name_prefix              = "${var.cluster_name}-external-dns-"
+  attach_external_dns_policy    = true
+  external_dns_hosted_zone_arns = [var.route53_hosted_zone_arn]
+
+  oidc_providers = {
+    main = {
+      provider_arn               = var.oidc_provider_arn
+      namespace_service_accounts = ["external-dns:external-dns"]
+    }
+  }
+}
+
+module "irsa_external_secrets" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.52"
+
+  role_name_prefix                      = "${var.cluster_name}-external-secrets-"
+  attach_external_secrets_policy        = true
+  external_secrets_secrets_manager_arns = var.secret_arns
+  external_secrets_kms_key_arns         = var.secrets_kms_key_arns
+
+  oidc_providers = {
+    main = {
+      provider_arn               = var.oidc_provider_arn
+      namespace_service_accounts = ["external-secrets:external-secrets"]
+    }
+  }
+}
+
+# Flux image-reflector : lit les tags ECR pour l'automation d'images (§5.7).
+# NB : le guide §2.4 écrit « irsa-image-reflector », mais le vrai ServiceAccount
+# créé par `flux bootstrap` s'appelle image-reflector-controller — on cible celui-ci.
+module "irsa_image_reflector" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.52"
+
+  role_name_prefix = "${var.cluster_name}-image-reflector-"
+  role_policy_arns = {
+    ecr-readonly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+  }
+
+  oidc_providers = {
+    main = {
+      provider_arn               = var.oidc_provider_arn
+      namespace_service_accounts = ["flux-system:image-reflector-controller"]
+    }
+  }
+}
+
+# cluster-autoscaler : scaling des node groups EKS (§3.5).
+module "irsa_cluster_autoscaler" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.52"
+
+  role_name_prefix                 = "${var.cluster_name}-cluster-autoscaler-"
+  attach_cluster_autoscaler_policy = true
+  cluster_autoscaler_cluster_names = [var.cluster_name]
+
+  oidc_providers = {
+    main = {
+      provider_arn               = var.oidc_provider_arn
+      namespace_service_accounts = ["kube-system:cluster-autoscaler"]
+    }
+  }
+}
+
+# cert-manager DNS-01 (optionnel) : nécessaire uniquement pour des certificats
+# wildcard ; le ClusterIssuer HTTP-01 du guide §3.5 n'en a pas besoin.
+module "irsa_cert_manager" {
+  count   = var.enable_cert_manager ? 1 : 0
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.52"
+
+  role_name_prefix              = "${var.cluster_name}-cert-manager-"
+  attach_cert_manager_policy    = true
+  cert_manager_hosted_zone_arns = [var.route53_hosted_zone_arn]
+
+  oidc_providers = {
+    main = {
+      provider_arn               = var.oidc_provider_arn
+      namespace_service_accounts = ["cert-manager:cert-manager"]
+    }
+  }
+}
+
+# KEDA sur CloudWatch (optionnel) : uniquement pour des scalers AWS.
+module "irsa_keda" {
+  count   = var.enable_keda ? 1 : 0
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.52"
+
+  role_name_prefix = "${var.cluster_name}-keda-"
+  role_policy_arns = {
+    cloudwatch-read = "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess"
+  }
+
+  oidc_providers = {
+    main = {
+      provider_arn               = var.oidc_provider_arn
+      namespace_service_accounts = ["keda:keda-operator"]
+    }
+  }
+}

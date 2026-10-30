@@ -1,0 +1,28 @@
+# Copier ce fichier en terraform.tfvars (ignoré par git) puis adapter les valeurs.
+# Ne jamais committer terraform.tfvars : il peut contenir des valeurs sensibles.
+
+environment        = "dev"
+region             = "eu-north-1"
+cluster_name       = "dev-eks"
+kubernetes_version = "1.36"
+vpc_cidr           = "10.0.0.0/16"
+
+# Économie en dev (guide §2.3) : un seul NAT Gateway partagé.
+nat_gateway_mode = "single"
+
+domain_name = "dev.obszh.fr"
+
+# IP publique du poste au moment de la création (curl https://checkip.amazonaws.com).
+# À mettre à jour si l'IP change.
+api_allowed_cidrs = ["<CIDR-POSTE-OU-VPN>/32"]
+
+secret_arns          = []
+secrets_kms_key_arns = []
+
+enable_cert_manager = false
+enable_keda         = false
+
+git_org = "watchiMass"
+
+# github_token : NE PAS le mettre ici. Le fournir à l'apply via l'environnement :
+#   TF_VAR_github_token=... terraform apply
