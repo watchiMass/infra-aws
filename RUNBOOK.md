@@ -26,20 +26,30 @@ d'observabilité — puis **bootstrap Flux** automatiquement (fin de l'apply).
 
 ## 1. Prérequis machine
 
-### 1.1 Authentification AWS (session ~1 h)
+### 1.1 Authentification AWS (SSO standard — une fois par session, ~8 h)
 
 ```bash
-aws login
-# Pont pour Terraform — à ré-exécuter JUSTE AVANT l'apply (même shell) :
-eval "$(aws configure export-credentials --format env)"
+aws sso login --profile devops-admin
 ```
 
-> ⚠️ Les credentials exportés expirent (~1 h). Si l'apply dépasse,
-> ré-exporter n'est pas possible en cours de route : faire l'export en
-> dernier, juste avant `terraform apply`.
+Puis travailler avec `AWS_PROFILE=devops-admin` (ou l'exporter une fois
+dans le shell) :
+
+```bash
+export AWS_PROFILE=devops-admin
+aws sts get-caller-identity
+```
+
+> ✅ Méthode stable validée : Terraform résout le profil SSO **nativement**
+> et rafraîchit automatiquement les credentials de rôle tant que le token
+> SSO est valide (~8 h). Aucun `eval`/pont manuel.
 >
-> Le profil SSO standard (`AWS_PROFILE=devops-admin`) n'est PAS utilisable
-> (tokens expirés) — le pont `export-credentials` est la méthode validée.
+> ⚠️ Ne pas utiliser `aws login` + `aws configure export-credentials` : ce
+> mécanisme Omarchy est propriétaire, Terraform ne le comprend pas, et il
+> produit des erreurs transitoires « refreshed credentials still expired ».
+>
+> 🔧 Pour allonger la session : console AWS → IAM Identity Center →
+> Permission sets → AdministratorAccess → Session duration → 8 hours.
 
 ### 1.2 CLI Flux (requis par le bootstrap intégré à l'apply)
 
@@ -69,8 +79,8 @@ gh auth login
 ```bash
 cd infra-aws/terraform/environments/dev
 
-# 2.1 Session + token (même shell, dernier export avant l'apply)
-eval "$(aws configure export-credentials --format env)"
+# 2.1 Profil SSO + token (même shell)
+export AWS_PROFILE=devops-admin
 export TF_VAR_github_token=<TON-PAT>
 
 # 2.2 Init (backend S3 gitops01-state — bucket déjà créé)
