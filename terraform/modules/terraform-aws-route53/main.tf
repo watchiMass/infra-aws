@@ -7,6 +7,10 @@
 resource "aws_route53_zone" "this" {
   name = var.domain_name
 
-  # Pas de force_destroy : une zone se supprime volontairement, jamais par accident.
+  # force_destroy assumé (stratégie « destroy total » en dev, choix utilisateur) :
+  # les enregistrements créés par external-dns (policy upsert-only, jamais
+  # supprimés) disparaissent avec la zone au destroy.
+  force_destroy = true
+
   tags = merge(var.tags, { Name = var.domain_name })
 }

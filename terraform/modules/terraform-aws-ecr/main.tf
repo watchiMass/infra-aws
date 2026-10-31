@@ -10,6 +10,10 @@ resource "aws_ecr_repository" "this" {
   }
 
   tags = var.tags
+
+  # force_delete assumé (stratégie « destroy total » en dev, choix utilisateur) :
+  # les images sont détruites avec les repos — la CI devra re-pousser à chaque cycle.
+  force_delete = true
 }
 
 # Hygiène : au-delà de 20 images par repo, les plus anciennes expirent.

@@ -22,6 +22,11 @@ L'apply Terraform crée : VPC, cluster EKS `dev-eks` (1.36), rôles IRSA,
 zone DNS `dev.jerielmass.com`, dépôts GitHub privés, registre ECR, buckets
 d'observabilité — puis **bootstrap Flux** automatiquement (fin de l'apply).
 
+> **Stratégie « destroy total » (choix utilisateur)** : quand on ne travaille
+> pas, on détruit TOUT (`terraform destroy`, §8) pour ~0 $/mois. Les dépôts
+> locaux, la clé age et les secrets SOPS survivent — tout le reste est
+> recréé au cycle suivant.
+
 ---
 
 ## 1. Prérequis machine
@@ -289,3 +294,55 @@ curl -s https://portfolio.dev.jerielmass.com | head
 - [ ] `curl https://portfolio.dev.jerielmass.com` répond
 - [ ] HPA et ScaledObject actifs (`kubectl get hpa -n apps-dev-portfolio`,
       `kubectl get scaledobject -n ingress-nginx`)
+
+---
+
+## 8. Cycle de travail — destroy / re-apply
+
+### 8.1 Le soir : tout détruire (~15 min)
+
+```bash
+export AWS_PROFILE=devops-admin
+export TF_VAR_github_token=<TON-PAT>   # requis : le provider GitHub supprime les dépôts
+cd infra-aws/terraform/environments/dev
+terraform destroy
+```
+
+- Si le destroy échoue en cours (timeouts NAT/EKS fréquents) : **relancer**
+  `terraform destroy` — idempotent ;
+- ⚠️ Les volumes **EBS des PVC** ne sont PAS supprimés par Terraform
+  (~2,50 $/mois s'ils traînent). Nettoyage obligatoire après le destroy :
+
+```bash
+aws ec2 describe-volumes --filters Name=tag:kubernetes.io/cluster/dev-eks,Values=owned \
+  --query 'Volumes[*].VolumeId' --output text | xargs -r -n1 aws ec2 delete-volume
+```
+
+**Disparaît (assumé)** : dépôts GitHub + contenu, images ECR, logs/traces S3,
+zone DNS + enregistrements, cluster, VPC, rôles IRSA.
+**Survit** : bucket tfstate (créé hors Terraform), les 3 dépôts LOCAUX
+(source de vérité), clé `age.agekey` + secrets SOPS en git, PAT.
+
+### 8.2 Le lendemain : re-apply (~20 min + réconciliation Flux)
+
+Même séquence que le premier jour, en entier :
+
+1. §2 — Apply (le bootstrap Flux se refait automatiquement) ;
+2. §3 — **Re-push des 3 dépôts** (rebase : les repos GitHub sont recréés
+   vides à l'apply) ;
+3. §4 — **Post-apply complet** : sops-age → patch kustomize-controller →
+   édition bootstrap (décryption + IRSA image-reflector) → **délégation DNS**
+   (⚠️ la zone recréée a de NOUVEAUX name servers : mettre à jour les NS
+   chez OVH avec `terraform output zone_name_servers`) ;
+4. §5 — Validation ;
+5. Rappel : les images ECR ayant été détruites, **re-pousser via la CI**
+   (tag semver ≥1.0.0) — sinon le portfolio reste en `ImagePullBackOff`.
+
+### 8.3 Pièges connus du cycle
+
+| Piège | Solution |
+|---|---|
+| `ExpiredToken` au destroy/apply | `aws sso login --profile devops-admin` |
+| Conflit README au rebase (§3) | Garder NOTRE version (`git checkout --ours README.md`) |
+| Certificats en attente après re-apply | Vérifier la délégation NS (nouveaux name servers) |
+| Portfolio en `ImagePullBackOff` | Push CI semver manquant — voir §6 |

@@ -5,6 +5,10 @@ resource "aws_s3_bucket" "this" {
 
   bucket = each.key
   tags   = var.tags
+
+  # force_destroy assumé (stratégie « destroy total » en dev, choix utilisateur) :
+  # les logs/traces accumulés disparaissent avec les buckets au destroy.
+  force_destroy = true
 }
 
 # SSE-S3 : suffisant pour des logs/traces, sans coût de clé KMS.
