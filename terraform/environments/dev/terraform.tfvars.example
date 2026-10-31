@@ -10,7 +10,7 @@ vpc_cidr           = "10.0.0.0/16"
 # Économie en dev (guide §2.3) : un seul NAT Gateway partagé.
 nat_gateway_mode = "single"
 
-domain_name = "dev.obszh.fr"
+domain_name = "dev.jerielmass.com"
 
 # IP publique du poste au moment de la création (curl https://checkip.amazonaws.com).
 # À mettre à jour si l'IP change.

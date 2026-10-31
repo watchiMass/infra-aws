@@ -19,7 +19,7 @@ Tâches post-apply ──► Validation ──► Exploitation
 ```
 
 L'apply Terraform crée : VPC, cluster EKS `dev-eks` (1.36), rôles IRSA,
-zone DNS `dev.obszh.fr`, dépôts GitHub privés, registre ECR, buckets
+zone DNS `dev.jerielmass.com`, dépôts GitHub privés, registre ECR, buckets
 d'observabilité — puis **bootstrap Flux** automatiquement (fin de l'apply).
 
 ---
@@ -197,14 +197,16 @@ git push
 flux reconcile kustomization flux-system -n flux-system   # pour accélérer
 ```
 
-### 4.5 Délégation DNS `dev.obszh.fr`
+### 4.5 Délégation DNS `dev.jerielmass.com`
 
 ```bash
 terraform output zone_name_servers
 ```
 
-Créer ces 4 enregistrements **NS** dans la zone parente `obszh.fr`
-(chez ton registrar / hébergeur DNS). Sans cette délégation : pas de
+Créer ces 4 enregistrements **NS** pour le sous-domaine `dev` dans la zone
+parente `jerielmass.com` (interface OVH : Zone DNS → ajouter une entrée NS
+« dev » → coller les 4 name servers Route 53). Le site web existant sur
+`jerielmass.com` n'est pas affecté. Sans cette délégation : pas de
 résolution publique → les certificats Let's Encrypt (HTTP-01) échoueront
 et réessaieront automatiquement jusqu'à ce que ce soit fait.
 
@@ -244,7 +246,7 @@ sops -d clusters/dev/secrets/grafana-admin.yaml | grep admin-password
 # → vérifier 3 datasources : Prometheus, Loki, Tempo (+ corrélation trace→logs)
 
 # Portfolio (après ton premier push CI semver — voir §6)
-curl -s https://portfolio.dev.obszh.fr | head
+curl -s https://portfolio.dev.jerielmass.com | head
 ```
 
 ---
@@ -269,11 +271,11 @@ curl -s https://portfolio.dev.obszh.fr | head
 - [ ] Dépôts GitHub : infra-aws, gitops-platform, gitops-apps contiennent tout le code
 - [ ] `flux get kustomizations` : sources, flux-config, infrastructure, observability, apps — Ready
 - [ ] 13 HelmReleases Released (dont ingress-nginx en NLB, cert-manager, Loki, Tempo)
-- [ ] Grafana accessible en HTTPS (https://grafana.dev.obszh.fr), 3 datasources
+- [ ] Grafana accessible en HTTPS (https://grafana.dev.jerielmass.com), 3 datasources
 - [ ] TestAlert visible dans Alertmanager
-- [ ] Délégation DNS dev.obszh.fr effectuée
+- [ ] Délégation DNS dev.jerielmass.com effectuée
 - [ ] Certificats Let's Encrypt émis (grafana, portfolio)
 - [ ] Premier push CI dev-portfolio → image ECR → automation Flux → déploiement
-- [ ] `curl https://portfolio.dev.obszh.fr` répond
+- [ ] `curl https://portfolio.dev.jerielmass.com` répond
 - [ ] HPA et ScaledObject actifs (`kubectl get hpa -n apps-dev-portfolio`,
       `kubectl get scaledobject -n ingress-nginx`)
