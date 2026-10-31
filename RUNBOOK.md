@@ -180,34 +180,34 @@ kubectl patch deployment kustomize-controller -n flux-system --type=json -p='[
   {"op":"add","path":"/spec/template/spec/volumes/-","value":{"name":"sops-age","secret":{"secretName":"sops-age"}}}]'
 ```
 
-### 4.4 Éditer la Kustomization racine générée par bootstrap
+### 4.4 IRSA de l'image-reflector (seul édit manuel restant)
 
-Fichier `gitops-platform/clusters/dev/flux-system/kustomization.yaml`
-(récupérer l'ARN : `terraform output image_reflector_role_arn`) :
+La **décryption SOPS est déjà déclarée** dans notre dépôt : la Kustomization
+`secrets` (`clusters/dev/kustomizations.yaml`) porte `spec.decryption`. Rien à
+faire de plus que §4.2-4.3.
+
+Reste **un seul patch** : le ServiceAccount de l'image-reflector doit porter
+l'annotation IRSA. Dans `clusters/dev/flux-system/kustomization.yaml`
+(fichier kustomize : `patches:` est un champ de premier niveau, pas sous `spec:`).
+Récupérer l'ARN : `terraform output image_reflector_role_arn`.
 
 ```yaml
-spec:
-  # ajouter après les champs existants :
-  decryption:
-    provider: sops
-    secretRef:
-      name: sops-age
-  patches:
-    - patch: |
-        apiVersion: v1
-        kind: ServiceAccount
-        metadata:
-          name: image-reflector-controller
-          namespace: flux-system
-          annotations:
-            eks.amazonaws.com/role-arn: <IMAGE_REFLECTOR_ROLE_ARN>
+patches:
+  - patch: |
+      apiVersion: v1
+      kind: ServiceAccount
+      metadata:
+        name: image-reflector-controller
+        namespace: flux-system
+        annotations:
+          eks.amazonaws.com/role-arn: <IMAGE_REFLECTOR_ROLE_ARN>
 ```
 
 Puis committer + pousser. Flux se réconcilie tout seul :
 
 ```bash
 git add clusters/dev/flux-system/kustomization.yaml
-git commit -m "feat(flux): décryption SOPS + IRSA image-reflector sur la racine"
+git commit -m "feat(flux): IRSA image-reflector sur les composants Flux"
 git push
 flux reconcile kustomization flux-system -n flux-system   # pour accélérer
 ```

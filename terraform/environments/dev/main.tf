@@ -4,6 +4,13 @@ locals {
     managed-by  = "terraform"
     cluster     = var.cluster_name
   }
+
+  # Les noms de buckets S3 sont GLOBALEMENT uniques : suffixe numéro de
+  # compte obligatoire ("obs-loki-dev" appartient déjà à quelqu'un d'autre).
+  obs_buckets = {
+    loki  = "obs-loki-${var.environment}-${data.aws_caller_identity.current.account_id}"
+    tempo = "obs-tempo-${var.environment}-${data.aws_caller_identity.current.account_id}"
+  }
 }
 
 module "network" {
@@ -43,8 +50,8 @@ module "irsa" {
   secrets_kms_key_arns    = var.secrets_kms_key_arns
   enable_cert_manager     = var.enable_cert_manager
   enable_keda             = var.enable_keda
-  loki_bucket_arn         = module.obs_storage.bucket_arns["obs-loki-dev"]
-  tempo_bucket_arn        = module.obs_storage.bucket_arns["obs-tempo-dev"]
+  loki_bucket_arn         = module.obs_storage.bucket_arns[local.obs_buckets.loki]
+  tempo_bucket_arn        = module.obs_storage.bucket_arns[local.obs_buckets.tempo]
 }
 
 # Registre d'images ECR + rôle de push pour la CI GitHub Actions (§5.2).
@@ -62,7 +69,7 @@ module "ecr" {
 module "obs_storage" {
   source = "../../modules/terraform-aws-obs-storage"
 
-  buckets = ["obs-loki-dev", "obs-tempo-dev"]
+  buckets = [local.obs_buckets.loki, local.obs_buckets.tempo]
   tags    = local.tags
 }
 
@@ -117,8 +124,8 @@ resource "github_repository_file" "cluster_metadata" {
       cluster_autoscaler_role_arn = module.irsa.cluster_autoscaler_role_arn
       loki_role_arn               = module.irsa.loki_role_arn
       tempo_role_arn              = module.irsa.tempo_role_arn
-      loki_bucket                 = module.obs_storage.bucket_names["obs-loki-dev"]
-      tempo_bucket                = module.obs_storage.bucket_names["obs-tempo-dev"]
+      loki_bucket                 = module.obs_storage.bucket_names[local.obs_buckets.loki]
+      tempo_bucket                = module.obs_storage.bucket_names[local.obs_buckets.tempo]
     }
   })
 }

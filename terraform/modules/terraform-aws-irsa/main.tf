@@ -21,14 +21,24 @@ module "irsa_external_dns" {
   }
 }
 
+locals {
+  # Une liste vide produit une policy IAM sans Resource
+  # (MalformedPolicyDocument: "Policy statement must contain resources") :
+  # fallback sur le périmètre par défaut du module (tous les secrets de
+  # Secrets Manager, toutes les clés KMS), à resserrer quand secret_arns
+  # sera renseigné.
+  external_secrets_arns     = length(var.secret_arns) > 0 ? var.secret_arns : ["arn:aws:secretsmanager:*:*:secret:*"]
+  external_secrets_kms_arns = length(var.secrets_kms_key_arns) > 0 ? var.secrets_kms_key_arns : ["arn:aws:kms:*:*:key/*"]
+}
+
 module "irsa_external_secrets" {
   source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
   version = "~> 5.52"
 
   role_name_prefix                      = "${var.cluster_name}-external-secrets-"
   attach_external_secrets_policy        = true
-  external_secrets_secrets_manager_arns = var.secret_arns
-  external_secrets_kms_key_arns         = var.secrets_kms_key_arns
+  external_secrets_secrets_manager_arns = local.external_secrets_arns
+  external_secrets_kms_key_arns         = local.external_secrets_kms_arns
 
   oidc_providers = {
     main = {

@@ -28,6 +28,10 @@ module "eks" {
     }
     vpc-cni = {
       most_recent = true
+      # CRITIQUE : le CNI doit exister AVANT les nœuds, sinon ils ne passent
+      # jamais Ready et le node group est déclaré unhealthy (cercle vicieux :
+      # les addons sans before_compute attendent les node groups sains).
+      before_compute = true
       configuration_values = jsonencode({
         env = {
           ENABLE_PREFIX_DELEGATION = "true"
