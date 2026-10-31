@@ -132,8 +132,9 @@ cd gitops-platform
 git remote add origin git@github.com:watchiMass/gitops-platform.git
 git fetch origin
 git rebase origin/main
-# Conflit attendu sur README.md : garder NOTRE version (plus riche)
-git checkout --ours README.md && git add README.md
+# Conflit attendu sur README.md. ⚠️ En REBASE, --theirs = le commit rejoué
+# (ton travail) et --ours = le remote : on garde NOTRE version avec --theirs.
+git checkout --theirs README.md && git add README.md
 git rebase --continue
 git push -u origin main
 ```
@@ -145,7 +146,7 @@ cd gitops-apps
 git remote add origin git@github.com:watchiMass/gitops-apps.git
 git fetch origin
 git rebase origin/main
-git checkout --ours README.md && git add README.md   # idem
+git checkout --theirs README.md && git add README.md   # idem (rebase)
 git rebase --continue
 git push -u origin main
 ```
