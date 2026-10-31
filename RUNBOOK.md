@@ -91,11 +91,9 @@ export TF_VAR_github_token=<TON-PAT>
 # 2.2 Init (backend S3 gitops01-state — bucket déjà créé)
 terraform init
 
-# 2.3 Plan frais (l'ancien /tmp/tfplan-dev est périmé) — revue rapide
-terraform plan
-
-# 2.4 Apply (~15-20 min)
-terraform apply
+# 2.3 IP publique actuelle dans l'allowlist de l'API EKS
+#     (ton IP change avec le FAI : on la réinjecte à chaque apply)
+terraform apply -var="api_allowed_cidrs=[\"$(curl -s https://checkip.amazonaws.com)/32\"]"
 ```
 
 À la fin de l'apply :
