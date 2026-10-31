@@ -43,6 +43,8 @@ module "irsa" {
   secrets_kms_key_arns    = var.secrets_kms_key_arns
   enable_cert_manager     = var.enable_cert_manager
   enable_keda             = var.enable_keda
+  loki_bucket_arn         = module.obs_storage.bucket_arns["obs-loki-dev"]
+  tempo_bucket_arn        = module.obs_storage.bucket_arns["obs-tempo-dev"]
 }
 
 # Registre d'images ECR + rôle de push pour la CI GitHub Actions (§5.2).
@@ -54,6 +56,14 @@ module "ecr" {
   github_org   = var.git_org
   github_repos = ["dev-portfolio"]
   tags         = local.tags
+}
+
+# Stockage S3 des backends d'observabilité (§4.3-4.4) : logs Loki, traces Tempo.
+module "obs_storage" {
+  source = "../../modules/terraform-aws-obs-storage"
+
+  buckets = ["obs-loki-dev", "obs-tempo-dev"]
+  tags    = local.tags
 }
 
 # --- §2.7 GitOps Bridge — Terraform → Git → Flux ---
@@ -105,6 +115,10 @@ resource "github_repository_file" "cluster_metadata" {
       external_secrets_role_arn   = module.irsa.external_secrets_role_arn
       image_reflector_role_arn    = module.irsa.image_reflector_role_arn
       cluster_autoscaler_role_arn = module.irsa.cluster_autoscaler_role_arn
+      loki_role_arn               = module.irsa.loki_role_arn
+      tempo_role_arn              = module.irsa.tempo_role_arn
+      loki_bucket                 = module.obs_storage.bucket_names["obs-loki-dev"]
+      tempo_bucket                = module.obs_storage.bucket_names["obs-tempo-dev"]
     }
   })
 }

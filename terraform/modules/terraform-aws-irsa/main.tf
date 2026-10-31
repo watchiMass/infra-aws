@@ -112,3 +112,67 @@ module "irsa_keda" {
     }
   }
 }
+
+# Loki : accès S3 limité à SON bucket de logs (§4.3 — oubli du guide).
+resource "aws_iam_policy" "loki_s3" {
+  name = "${var.cluster_name}-loki-s3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:GetObject", "s3:PutObject", "s3:DeleteObject",
+        "s3:ListBucket", "s3:GetBucketLocation",
+      ]
+      Resource = [var.loki_bucket_arn, "${var.loki_bucket_arn}/*"]
+    }]
+  })
+}
+
+module "irsa_loki" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.52"
+
+  role_name_prefix = "${var.cluster_name}-loki-"
+  role_policy_arns = { loki-s3 = aws_iam_policy.loki_s3.arn }
+
+  oidc_providers = {
+    main = {
+      provider_arn               = var.oidc_provider_arn
+      namespace_service_accounts = ["observability:loki"]
+    }
+  }
+}
+
+# Tempo : accès S3 limité à SON bucket de traces (§4.4 — oubli du guide).
+resource "aws_iam_policy" "tempo_s3" {
+  name = "${var.cluster_name}-tempo-s3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "s3:GetObject", "s3:PutObject", "s3:DeleteObject",
+        "s3:ListBucket", "s3:GetBucketLocation",
+      ]
+      Resource = [var.tempo_bucket_arn, "${var.tempo_bucket_arn}/*"]
+    }]
+  })
+}
+
+module "irsa_tempo" {
+  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+  version = "~> 5.52"
+
+  role_name_prefix = "${var.cluster_name}-tempo-"
+  role_policy_arns = { tempo-s3 = aws_iam_policy.tempo_s3.arn }
+
+  oidc_providers = {
+    main = {
+      provider_arn               = var.oidc_provider_arn
+      namespace_service_accounts = ["observability:tempo"]
+    }
+  }
+}

@@ -27,3 +27,13 @@ output "keda_role_arn" {
   description = "ARN IRSA de KEDA (null si désactivé)."
   value       = var.enable_keda ? module.irsa_keda[0].iam_role_arn : null
 }
+
+output "loki_role_arn" {
+  description = "ARN IRSA de Loki (accès S3 aux logs)."
+  value       = module.irsa_loki.iam_role_arn
+}
+
+output "tempo_role_arn" {
+  description = "ARN IRSA de Tempo (accès S3 aux traces)."
+  value       = module.irsa_tempo.iam_role_arn
+}

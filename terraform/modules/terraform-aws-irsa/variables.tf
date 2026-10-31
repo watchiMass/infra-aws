@@ -36,3 +36,13 @@ variable "enable_keda" {
   type        = bool
   default     = false
 }
+
+variable "loki_bucket_arn" {
+  description = "ARN du bucket S3 des logs Loki."
+  type        = string
+}
+
+variable "tempo_bucket_arn" {
+  description = "ARN du bucket S3 des traces Tempo."
+  type        = string
+}
