@@ -277,6 +277,7 @@ curl -s https://portfolio.dev.jerielmass.com | head
 | Alertes absentes de Grafana | `kubectl get servicemonitors -A` · cibles Prometheus (`/targets`) |
 | Pods en attente (ressources) | `kubectl top nodes` — l'autoscaler ajoute des nœuds (max 6) |
 | `flux get sources` : gitops-apps pas Ready | PAT valide ? secret `flux-system` correct ? dépôt privé accessible ? |
+| `NodeCreationFailure: Unhealthy nodes` | Vérifier que `vpc-cni` a `before_compute = true` (CNI avant les nœuds) et que l'addon existe : `aws eks describe-addon --cluster-name dev-eks --addon-name vpc-cni` |
 
 ---
 
